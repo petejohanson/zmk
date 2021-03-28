@@ -1,0 +1,32 @@
+name: Hardware Metadata Validation
+
+on:
+  push:
+    paths:
+      - ".github/workflows/hardware-metadata-validation.yml"
+      - "schema/hardware-metadata.schema.json"
+      - "app/boards/**/*.zmk.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/hardware-metadata-validation.yml"
+      - "schema/hardware-metadata.schema.json"
+      - "app/boards/**/*.zmk.yml"
+
+jobs:
+  validate-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r schema/requirements.txt
+      - name: Validate Hardware Metadata
+        run: |
+          shopt -s globstar
+          set -e
+          for x in ./app/boards/**/*.zmk.yml; do jsonschema -i <(yaml2json "$x") schema/hardware-metadata.schema.json ; done
