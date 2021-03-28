@@ -1,0 +1,10 @@
+id: corne
+name: Corne
+type: shield
+url: https://github.com/foostan/crkbd/
+interconnects: ["Pro Micro"]
+features:
+  - display
+parts:
+- left
+- right

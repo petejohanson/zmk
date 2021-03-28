@@ -1,0 +1,9 @@
+id: nrfmicro
+name: nRFMicro
+type: mcu
+arch: arm
+outputs:
+  - usb
+  - ble
+url: https://github.com/joric/nrfmicro/
+interconnects: ["Pro Micro"]
