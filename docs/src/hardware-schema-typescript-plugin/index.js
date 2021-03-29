@@ -2,10 +2,12 @@
 
 var PrebuildPlugin = require("prebuild-webpack-plugin");
 const fs = require("fs");
-const { compileFromFile } = require('json-schema-to-typescript');
+const { compileFromFile } = require("json-schema-to-typescript");
 
 function generateHardwareMetadataTypescript() {
-  compileFromFile("../schema/hardware-metadata.schema.json").then(ts => fs.writeFileSync("src/hardware-metadata.d.ts", ts)).catch(e => console.error(e));
+  compileFromFile("../schema/hardware-metadata.schema.json")
+    .then((ts) => fs.writeFileSync("src/hardware-metadata.d.ts", ts))
+    .catch((e) => console.error(e));
 }
 
 module.exports = function () {
