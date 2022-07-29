@@ -1,0 +1,12 @@
+identifier: seeeduino_xiao_rp2040
+name: Seeeduino XIAO RP2040
+type: mcu
+arch: arm
+flash: 2048
+ram: 256
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+supported:
+  - serial

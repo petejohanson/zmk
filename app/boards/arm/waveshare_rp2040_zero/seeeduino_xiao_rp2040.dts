@@ -1,0 +1,101 @@
+/*
+ * Copyright (c) 2021 Yonatan Schachter
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+
+#include <rpi_pico/rp2040.dtsi>
+#include "seeeduino_xiao_rp2040-pinctl.dtsi"
+#include "seeed_xiao_connector.dtsi"
+#include <freq.h>
+
+/ {
+	model = "Seeeduino XIAO RP2040";
+	compatible = "seeeeduino,xiao-rp2040", "raspberrypi,rp2040";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,console = &uart0;
+		zephyr,code-partition = &code_partition;
+	};
+
+	/* These aliases are provided for compatibility with samples */
+	aliases {
+		led0 = &blue_led;
+		led1 = &green_led;
+		led2 = &red_led;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		blue_led: blue_led {
+			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+			label = "BLUE_LED";
+		};
+
+		green_led: green_led {
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+			label = "GREEN_LED";
+		};
+
+		red_led: red_led {
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+			label = "RED_LED";
+		};
+	};
+};
+
+&flash0 {
+	/* 8MB of flash minus the 0x100 used for
+	 * the second stage bootloader
+	 */
+	reg = <0x10000000 DT_SIZE_M(2)>;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * Start at the beginning of usable flash, 8MB minus the
+		 * second stage space and the 16 KiB reserved for settings
+		 */
+		code_partition: partition@100 {
+			label = "code";
+			reg = <0x100 (DT_SIZE_M(2) - 0x100)>;
+			read-only;
+		};
+	};
+};
+
+&uart0 {
+	current-speed = <115200>;
+	status = "okay";
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-names = "default";
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&spi0_default>;
+	pinctrl-names = "default";
+	clock-frequency = <DT_FREQ_M(2)>;
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-0 = <&i2c1_default>;
+	pinctrl-names = "default";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+zephyr_udc0: &usbd {
+	status = "okay";
+};
