@@ -1,12 +1,12 @@
 # Copyright (c) 2021 Pete Johanson
 # SPDX-License-Identifier: Apache-2.0
 
-if BOARD_SEEEDUINO_XIAO_RP2040
+if BOARD_WAVESHARE_RP2040_ZERO
 
 config BOARD
-	default "seeeduino_xiao_rp2040"
+	default "waveshare_rp2040_zero"
 
 config RP2_FLASH_W25Q080
 	default y
 
-endif # BOARD_SEEEDUINO_XIAO_RP2040
+endif # BOARD_WAVESHARE_RP2040_ZERO

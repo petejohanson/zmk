@@ -6,27 +6,28 @@
 #include <dt-bindings/pinctrl/rpi-pico-rp2040-pinctrl.h>
 
 &pinctrl {
-	uart0_default: uart0_default {
+	uart1_default: uart0_default {
 		group1 {
-			pinmux = <UART0_TX_P0>;
+			pinmux = <UART1_TX_P20>;
 		};
 		group2 {
-			pinmux = <UART0_RX_P1>;
+			pinmux = <UART1_RX_P5>;
 			input-enable;
 		};
 	};
 
 	i2c1_default: i2c1_default {
 		group1 {
-			pinmux = <I2C1_SDA_P6>, <I2C1_SCL_P7>;
+			pinmux = <I2C1_SDA_P22>, <I2C1_SCL_P23>;
 			input-enable;
 			input-schmitt-enable;
 		};
 	};
 
+
 	spi0_default: spi0_default {
 		group1 {
-			pinmux = <SPI0_TX_P3>, <SPI0_SCK_P2>;
+			pinmux = <SPI0_TX_P3>, <SPI0_SCK_P6>;
 		};
 		group2 {
 			pinmux = <SPI0_RX_P4>;

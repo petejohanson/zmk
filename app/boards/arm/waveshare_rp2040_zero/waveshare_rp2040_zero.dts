@@ -7,45 +7,16 @@
 /dts-v1/;
 
 #include <rpi_pico/rp2040.dtsi>
-#include "seeeduino_xiao_rp2040-pinctl.dtsi"
+#include "adafruit_qt_py_rp2040-pinctrl.dtsi"
 #include "seeed_xiao_connector.dtsi"
 #include <freq.h>
 
 / {
-	model = "Seeeduino XIAO RP2040";
-	compatible = "seeeeduino,xiao-rp2040", "raspberrypi,rp2040";
-
 	chosen {
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,console = &uart0;
 		zephyr,code-partition = &code_partition;
-	};
-
-	/* These aliases are provided for compatibility with samples */
-	aliases {
-		led0 = &blue_led;
-		led1 = &green_led;
-		led2 = &red_led;
-	};
-
-	leds {
-		compatible = "gpio-leds";
-
-		blue_led: blue_led {
-			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
-			label = "BLUE_LED";
-		};
-
-		green_led: green_led {
-			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
-			label = "GREEN_LED";
-		};
-
-		red_led: red_led {
-			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
-			label = "RED_LED";
-		};
 	};
 };
 
@@ -53,7 +24,7 @@
 	/* 8MB of flash minus the 0x100 used for
 	 * the second stage bootloader
 	 */
-	reg = <0x10000000 DT_SIZE_M(2)>;
+	reg = <0x10000000 DT_SIZE_M(8)>;
 
 	partitions {
 		compatible = "fixed-partitions";
@@ -66,16 +37,25 @@
 		 */
 		code_partition: partition@100 {
 			label = "code";
-			reg = <0x100 (DT_SIZE_M(2) - 0x100)>;
+			reg = <0x100 (DT_SIZE_M(8) - DT_SIZE_K(16))>;
 			read-only;
+		};
+
+		/*
+		 * The final 16 KiB is reserved for the application.
+		 * Storage partition may be used by FCB or LittleFS.
+		 */
+		storage_partition: partition@7fbe00 {
+			label = "storage";
+			reg = <0x007fbe00 DT_SIZE_K(16)>;
 		};
 	};
 };
 
-&uart0 {
+&uart1 {
 	current-speed = <115200>;
 	status = "okay";
-	pinctrl-0 = <&uart0_default>;
+	pinctrl-0 = <&uart1_default>;
 	pinctrl-names = "default";
 };
 
@@ -90,6 +70,7 @@
 	status = "okay";
 	pinctrl-0 = <&i2c1_default>;
 	pinctrl-names = "default";
+	clock-frequency = <I2C_BITRATE_FAST>;
 };
 
 &gpio0 {
