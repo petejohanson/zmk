@@ -21,10 +21,10 @@
 };
 
 &flash0 {
-	/* 8MB of flash minus the 0x100 used for
+	/* 2MB of flash minus the 0x100 used for
 	 * the second stage bootloader
 	 */
-	reg = <0x10000000 DT_SIZE_M(8)>;
+	reg = <0x10000000 DT_SIZE_M(2)>;
 
 	partitions {
 		compatible = "fixed-partitions";
@@ -37,7 +37,7 @@
 		 */
 		code_partition: partition@100 {
 			label = "code";
-			reg = <0x100 (DT_SIZE_M(8) - DT_SIZE_K(16))>;
+			reg = <0x100 (DT_SIZE_M(2) - DT_SIZE_K(16))>;
 			read-only;
 		};
 
