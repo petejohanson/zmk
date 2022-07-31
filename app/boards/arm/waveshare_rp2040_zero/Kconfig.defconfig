@@ -9,4 +9,7 @@ config BOARD
 config RP2_FLASH_W25Q080
 	default y
 
+config ZMK_USB
+	default y
+
 endif # BOARD_WAVESHARE_RP2040_ZERO
