@@ -8,7 +8,6 @@
 
 #include <rpi_pico/rp2040.dtsi>
 #include "waveshare_rp2040_zero-pinctrl.dtsi"
-#include "seeed_xiao_connector.dtsi"
 #include <freq.h>
 
 / {
