@@ -4,5 +4,6 @@
       "type": "generic",
       "path": "app/VERSION"
     }
-  ]
+  ],
+  ".": "1.0.0"
 }
