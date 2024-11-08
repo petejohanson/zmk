@@ -1,0 +1,8 @@
+{
+  "extra-files": [
+    {
+      "type": "generic",
+      "path": "app/VERSION"
+    }
+  ]
+}
