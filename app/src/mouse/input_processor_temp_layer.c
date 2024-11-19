@@ -41,7 +41,7 @@ struct temp_layer_data {
 static struct k_work_delayable layer_disable_works[MAX_LAYERS];
 
 /* Position Search */
-static inline bool position_is_excluded(const struct temp_layer_config *config, uint32_t position) {
+static bool position_is_excluded(const struct temp_layer_config *config, uint32_t position) {
     if (!config->excluded_positions || !config->num_positions) {
         return false;
     }
@@ -57,8 +57,8 @@ static inline bool position_is_excluded(const struct temp_layer_config *config, 
 }
 
 /* Timing Check */
-static inline bool should_quick_tap(const struct temp_layer_config *config, int64_t last_tapped,
-                                    int64_t current_time) {
+static bool should_quick_tap(const struct temp_layer_config *config, int64_t last_tapped,
+                             int64_t current_time) {
     return (last_tapped + config->require_prior_idle_ms) > current_time;
 }
 
@@ -166,15 +166,10 @@ static int temp_layer_handle_event(const struct device *dev, struct input_event 
 }
 
 static int temp_layer_init(const struct device *dev) {
-    struct temp_layer_data *data = dev->data;
-    data->dev = dev;
-    data->state = (struct temp_layer_state){0};
-
     for (int i = 0; i < MAX_LAYERS; i++) {
         k_work_init_delayable(&layer_disable_works[i], layer_disable_callback);
     }
 
-    LOG_INF("Auto layer processor initialized");
     return 0;
 }
 
