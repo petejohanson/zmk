@@ -28,11 +28,6 @@ uint8_t zmk_battery_state_of_charge(void) { return last_state_of_charge; }
 
 #if DT_HAS_CHOSEN(zmk_battery)
 static const struct device *const battery = DEVICE_DT_GET(DT_CHOSEN(zmk_battery));
-#else
-#warning                                                                                           \
-    "Using a node labeled BATTERY for the battery sensor is deprecated. Set a zmk,battery chosen node instead. (Ignore this if you don't have a battery sensor.)"
-static const struct device *battery;
-#endif
 
 static int zmk_battery_update(const struct device *battery) {
     union fuel_gauge_prop_val val;
@@ -95,16 +90,6 @@ static void zmk_battery_start_reporting() {
 }
 
 static int zmk_battery_init(void) {
-#if !DT_HAS_CHOSEN(zmk_battery)
-    battery = device_get_binding("BATTERY");
-
-    if (battery == NULL) {
-        return -ENODEV;
-    }
-
-    LOG_WRN("Finding battery device labeled BATTERY is deprecated. Use zmk,battery chosen node.");
-#endif
-
     if (!device_is_ready(battery)) {
         LOG_ERR("Battery device \"%s\" is not ready", battery->name);
         return -ENODEV;
@@ -142,3 +127,9 @@ ZMK_LISTENER(battery, battery_event_listener);
 ZMK_SUBSCRIPTION(battery, zmk_activity_state_changed);
 
 SYS_INIT(zmk_battery_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+#else
+
+#warning "No zmk,battery chosen node is set. Battery reporting is disabled."
+
+#endif // DT_HAS_CHOSEN(zmk_battery)
