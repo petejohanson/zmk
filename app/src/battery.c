@@ -8,6 +8,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/fuel_gauge.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/bluetooth/services/bas.h>
 
@@ -22,6 +23,14 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/activity.h>
 #include <zmk/workqueue.h>
 
+enum battery_device_api {
+    BATTERY_DEVICE_API_UNKNOWN,
+    BATTERY_DEVICE_API_SENSOR,
+    BATTERY_DEVICE_API_FUEL_GAUGE,
+};
+
+static enum battery_device_api battery_device_api = BATTERY_DEVICE_API_UNKNOWN;
+
 static uint8_t last_state_of_charge = 0;
 
 uint8_t zmk_battery_state_of_charge(void) { return last_state_of_charge; }
@@ -33,6 +42,24 @@ static const struct device *const battery = DEVICE_DT_GET(DT_CHOSEN(zmk_battery)
     "Using a node labeled BATTERY for the battery sensor is deprecated. Set a zmk,battery chosen node instead. (Ignore this if you don't have a battery sensor.)"
 static const struct device *battery;
 #endif
+
+#if IS_ENABLED(CONFIG_FUEL_GAUGE)
+
+static int get_state_of_charge_fuel_gauge(uint8_t *state_of_charge) {
+    union fuel_gauge_prop_val value;
+    int ret = fuel_gauge_get_prop(battery, FUEL_GAUGE_ABSOLUTE_STATE_OF_CHARGE, &value);
+    if (ret != 0) {
+        LOG_WRN("Failed to read battery state of charge: %d", ret);
+        return ret;
+    }
+
+    *state_of_charge = value.absolute_state_of_charge;
+    return ret;
+}
+
+#endif // IS_ENABLED(CONFIG_FUEL_GAUGE)
+
+#if IS_ENABLED(CONFIG_SENSOR)
 
 #if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
 static uint8_t lithium_ion_mv_to_pct(int16_t bat_mv) {
@@ -50,49 +77,75 @@ static uint8_t lithium_ion_mv_to_pct(int16_t bat_mv) {
 
 #endif // IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
 
-static int zmk_battery_update(const struct device *battery) {
-    struct sensor_value state_of_charge;
-    int rc;
+static int get_state_of_charge_sensor(uint8_t *state_of_charge) {
+    struct sensor_value value;
+    enum sensor_channel channel;
 
 #if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_STATE_OF_CHARGE)
-
-    rc = sensor_sample_fetch_chan(battery, SENSOR_CHAN_GAUGE_STATE_OF_CHARGE);
-    if (rc != 0) {
-        LOG_DBG("Failed to fetch battery values: %d", rc);
-        return rc;
-    }
-
-    rc = sensor_channel_get(battery, SENSOR_CHAN_GAUGE_STATE_OF_CHARGE, &state_of_charge);
-
-    if (rc != 0) {
-        LOG_DBG("Failed to get battery state of charge: %d", rc);
-        return rc;
-    }
+    channel = SENSOR_CHAN_GAUGE_STATE_OF_CHARGE;
 #elif IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
-    rc = sensor_sample_fetch_chan(battery, SENSOR_CHAN_VOLTAGE);
-    if (rc != 0) {
-        LOG_DBG("Failed to fetch battery values: %d", rc);
-        return rc;
-    }
-
-    struct sensor_value voltage;
-    rc = sensor_channel_get(battery, SENSOR_CHAN_VOLTAGE, &voltage);
-
-    if (rc != 0) {
-        LOG_DBG("Failed to get battery voltage: %d", rc);
-        return rc;
-    }
-
-    uint16_t mv = voltage.val1 * 1000 + (voltage.val2 / 1000);
-    state_of_charge.val1 = lithium_ion_mv_to_pct(mv);
-
-    LOG_DBG("State of change %d from %d mv", state_of_charge.val1, mv);
+    channel = SENSOR_CHAN_VOLTAGE;
 #else
 #error "Not a supported reporting fetch mode"
 #endif
 
-    if (last_state_of_charge != state_of_charge.val1) {
-        last_state_of_charge = state_of_charge.val1;
+    int ret = sensor_sample_fetch_chan(battery, channel);
+    if (ret != 0) {
+        LOG_WRN("Failed to fetch battery values: %d", ret);
+        return ret;
+    }
+
+    ret = sensor_channel_get(battery, channel, &value);
+    if (ret != 0) {
+        LOG_WRN("Failed to read battery sensor: %d", ret);
+        return ret;
+    }
+
+#if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_STATE_OF_CHARGE)
+    *state_of_charge = value.val1;
+#elif IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
+    uint16_t mv = value.val1 * 1000 + (value.val2 / 1000);
+    *state_of_charge = lithium_ion_mv_to_pct(mv);
+
+    LOG_DBG("State of charge = %d%% from %d mv", state_of_charge, mv);
+#endif
+
+    return ret;
+}
+
+#endif // IS_ENABLED(CONFIG_SENSOR)
+
+static int get_state_of_charge(uint8_t *state_of_charge) {
+    switch (battery_device_api) {
+    case BATTERY_DEVICE_API_FUEL_GAUGE:
+#if IS_ENABLED(CONFIG_FUEL_GAUGE)
+        return get_state_of_charge_fuel_gauge(state_of_charge);
+#else
+        return -ENOTSUP;
+#endif
+
+    case BATTERY_DEVICE_API_SENSOR:
+#if IS_ENABLED(CONFIG_SENSOR)
+        return get_state_of_charge_sensor(state_of_charge);
+#else
+        return -ENOTSUP;
+#endif
+
+    default:
+        return -ENOTSUP;
+    }
+}
+
+static int zmk_battery_update(void) {
+    uint8_t new_state_of_charge;
+    int rc = get_state_of_charge(&new_state_of_charge);
+
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (last_state_of_charge != new_state_of_charge) {
+        last_state_of_charge = new_state_of_charge;
 
         rc = raise_zmk_battery_state_changed(
             (struct zmk_battery_state_changed){.state_of_charge = last_state_of_charge});
@@ -120,7 +173,7 @@ static int zmk_battery_update(const struct device *battery) {
 }
 
 static void zmk_battery_work(struct k_work *work) {
-    int rc = zmk_battery_update(battery);
+    int rc = zmk_battery_update();
 
     if (rc != 0) {
         LOG_DBG("Failed to update battery value: %d.", rc);
@@ -141,6 +194,23 @@ static void zmk_battery_start_reporting() {
     }
 }
 
+static int init_battery_device_api(void) {
+    if (DEVICE_API_IS(fuel_gauge, battery)) {
+        battery_device_api = BATTERY_DEVICE_API_FUEL_GAUGE;
+        LOG_DBG("Using fuel gauge API for battery");
+        return 0;
+    }
+
+    if (DEVICE_API_IS(sensor, battery)) {
+        battery_device_api = BATTERY_DEVICE_API_SENSOR;
+        LOG_DBG("Using sensor API for battery");
+        return 0;
+    }
+
+    LOG_ERR("Battery device \"%s\" has unsupported API", battery->name);
+    return -ENOTSUP;
+}
+
 static int zmk_battery_init(void) {
 #if !DT_HAS_CHOSEN(zmk_battery)
     battery = device_get_binding("BATTERY");
@@ -155,6 +225,11 @@ static int zmk_battery_init(void) {
     if (!device_is_ready(battery)) {
         LOG_ERR("Battery device \"%s\" is not ready", battery->name);
         return -ENODEV;
+    }
+
+    int ret = init_battery_device_api();
+    if (ret != 0) {
+        return ret;
     }
 
     zmk_battery_start_reporting();

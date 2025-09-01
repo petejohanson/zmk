@@ -373,14 +373,14 @@ menu "Power Management"
 
 config ZMK_BATTERY_REPORTING
     bool "Battery level detection/reporting"
-    select SENSOR
     select ZMK_LOW_PRIORITY_WORK_QUEUE
     imply BT_BAS if ZMK_BLE
+    imply SENSOR
 
-if ZMK_BATTERY_REPORTING
+if ZMK_BATTERY_REPORTING && SENSOR
 
 choice ZMK_BATTERY_REPORTING_FETCH_MODE
-    prompt "Battery Reporting Fetch Mode"
+    prompt "Battery Reporting Sensor Fetch Mode"
 
 config ZMK_BATTERY_REPORTING_FETCH_MODE_STATE_OF_CHARGE
     bool "State of charge"
