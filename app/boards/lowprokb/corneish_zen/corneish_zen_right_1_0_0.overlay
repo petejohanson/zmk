@@ -39,6 +39,11 @@
             gpios = <&gpio0 26 GPIO_ACTIVE_HIGH>;
         };
     };
+
+    fuelgauge: fuelgauge {
+        compatible = "zmk,fuel-gauge-sensor";
+        sensor = <&fuelgauge_sensor>;
+    };
 };
 
 &default_transform {
@@ -91,7 +96,7 @@
     pinctrl-names = "default", "sleep";
     clock-frequency = <100000>;
 
-    fuelgauge: bq274xx@55 {
+    fuelgauge_sensor: bq274xx@55 {
         compatible = "ti,bq274xx";
         reg = <0x55>;
         design-voltage = <3700>; //Battery Design Voltage in mV

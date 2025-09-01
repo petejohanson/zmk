@@ -8,7 +8,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/fuel_gauge.h>
 #include <zephyr/bluetooth/services/bas.h>
 
 #include <zephyr/logging/log.h>
@@ -34,65 +34,18 @@ static const struct device *const battery = DEVICE_DT_GET(DT_CHOSEN(zmk_battery)
 static const struct device *battery;
 #endif
 
-#if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
-static uint8_t lithium_ion_mv_to_pct(int16_t bat_mv) {
-    // Simple linear approximation of a battery based off adafruit's discharge graph:
-    // https://learn.adafruit.com/li-ion-and-lipoly-batteries/voltages
-
-    if (bat_mv >= 4200) {
-        return 100;
-    } else if (bat_mv <= 3450) {
-        return 0;
-    }
-
-    return bat_mv * 2 / 15 - 459;
-}
-
-#endif // IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
-
 static int zmk_battery_update(const struct device *battery) {
-    struct sensor_value state_of_charge;
-    int rc;
+    union fuel_gauge_prop_val val;
 
-#if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_STATE_OF_CHARGE)
-
-    rc = sensor_sample_fetch_chan(battery, SENSOR_CHAN_GAUGE_STATE_OF_CHARGE);
-    if (rc != 0) {
-        LOG_DBG("Failed to fetch battery values: %d", rc);
-        return rc;
-    }
-
-    rc = sensor_channel_get(battery, SENSOR_CHAN_GAUGE_STATE_OF_CHARGE, &state_of_charge);
+    int rc = fuel_gauge_get_prop(battery, FUEL_GAUGE_ABSOLUTE_STATE_OF_CHARGE, &val);
 
     if (rc != 0) {
         LOG_DBG("Failed to get battery state of charge: %d", rc);
         return rc;
     }
-#elif IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING_FETCH_MODE_LITHIUM_VOLTAGE)
-    rc = sensor_sample_fetch_chan(battery, SENSOR_CHAN_VOLTAGE);
-    if (rc != 0) {
-        LOG_DBG("Failed to fetch battery values: %d", rc);
-        return rc;
-    }
 
-    struct sensor_value voltage;
-    rc = sensor_channel_get(battery, SENSOR_CHAN_VOLTAGE, &voltage);
-
-    if (rc != 0) {
-        LOG_DBG("Failed to get battery voltage: %d", rc);
-        return rc;
-    }
-
-    uint16_t mv = voltage.val1 * 1000 + (voltage.val2 / 1000);
-    state_of_charge.val1 = lithium_ion_mv_to_pct(mv);
-
-    LOG_DBG("State of change %d from %d mv", state_of_charge.val1, mv);
-#else
-#error "Not a supported reporting fetch mode"
-#endif
-
-    if (last_state_of_charge != state_of_charge.val1) {
-        last_state_of_charge = state_of_charge.val1;
+    if (last_state_of_charge != val.absolute_state_of_charge) {
+        last_state_of_charge = val.absolute_state_of_charge;
 
         rc = raise_zmk_battery_state_changed(
             (struct zmk_battery_state_changed){.state_of_charge = last_state_of_charge});
@@ -155,6 +108,11 @@ static int zmk_battery_init(void) {
     if (!device_is_ready(battery)) {
         LOG_ERR("Battery device \"%s\" is not ready", battery->name);
         return -ENODEV;
+    }
+
+    if (!DEVICE_API_IS(fuel_gauge, battery)) {
+        LOG_ERR("Battery device \"%s\" is not a fuel gauge", battery->name);
+        return -ENOTSUP;
     }
 
     zmk_battery_start_reporting();

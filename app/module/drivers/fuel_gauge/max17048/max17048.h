@@ -30,10 +30,6 @@ struct max17048_config {
 
 struct max17048_drv_data {
     struct k_sem lock;
-
-    uint16_t raw_state_of_charge;
-    uint16_t raw_charge_rate;
-    uint16_t raw_vcell;
 };
 
 #ifdef __cplusplus

@@ -1,0 +1,11 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+config ZMK_FUEL_GAUGE_SENSOR
+    bool
+    default DT_HAS_ZMK_FUEL_GAUGE_SENSOR_ENABLED
+    select SENSOR
+    select ZMK_BATTERY
+    depends on FUEL_GAUGE
+    help
+        Enable fuel gauge sensor driver for battery monitoring.
