@@ -11,15 +11,20 @@ sd_partition: &reserved_partition_0 { };
 
 / {
     chosen {
-        zmk,battery = &vbatt;
+        zmk,battery = &vbatt_gauge;
     };
 
     vbatt: vbatt {
-        compatible = "zmk,battery-voltage-divider";
+        compatible = "voltage-divider";
         io-channels = <&adc 7>;
         power-gpios = <&gpio0 14 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW)>;
         output-ohms = <510000>;
         full-ohms = <(1000000 + 510000)>;
+    };
+
+    vbatt_gauge: vbatt_gauge {
+        compatible = "zmk,fuel-gauge-voltage";
+        sensor = <&vbatt>;
     };
 };
 

@@ -20,7 +20,7 @@
         zmk,kscan = &kscan0;
         zmk,underglow = &led_strip;
         zmk,backlight = &backlight;
-        zmk,battery = &vbatt;
+        zmk,battery = &vbatt_gauge;
     };
 
     sensors: sensors {
@@ -109,10 +109,15 @@
     };
 
     vbatt: vbatt {
-        compatible = "zmk,battery-voltage-divider";
+        compatible = "voltage-divider";
         io-channels = <&adc 2>;
         output-ohms = <100000>;
         full-ohms = <(100000 + 100000)>;
+    };
+
+    vbatt_gauge: vbatt_gauge {
+        compatible = "zmk,fuel-gauge-voltage";
+        sensor = <&vbatt>;
     };
 };
 

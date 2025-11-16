@@ -1,0 +1,12 @@
+# Copyright (c) 2020-2021 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+config ZMK_BATTERY
+    bool "ZMK battery monitoring"
+    help
+        Enable battery monitoring
+
+rsource "battery_voltage/Kconfig"
+rsource "max17048/Kconfig"
+rsource "nrf_vddh/Kconfig"
+rsource "sensor/Kconfig"

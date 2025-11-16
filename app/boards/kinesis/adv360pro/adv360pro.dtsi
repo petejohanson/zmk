@@ -28,7 +28,7 @@
         zephyr,sram = &sram0;
         zephyr,flash = &flash0;
         zmk,backlight = &backlight;
-        zmk,battery = &vbatt;
+        zmk,battery = &vbatt_gauge;
         zmk,physical-layout = &physical_layout0;
         zmk,kscan = &kscan0;
         zmk,underglow = &led_strip;
@@ -57,10 +57,15 @@
     };
 
     vbatt: vbatt {
-        compatible = "zmk,battery-voltage-divider";
+        compatible = "voltage-divider";
         io-channels = <&adc 2>;
         output-ohms = <100000>;
         full-ohms = <(100000 + 100000)>;
+    };
+
+    vbatt_gauge: vbatt_gauge {
+        compatible = "zmk,fuel-gauge-voltage";
+        sensor = <&vbatt>;
     };
 
     backlight: pwmleds {
@@ -159,7 +164,7 @@ zephyr_udc0: &usbd {
         spi-zero-frame = <0x40>;
 
         color-mapping = <LED_COLOR_ID_GREEN
-                        LED_COLOR_ID_RED
-                        LED_COLOR_ID_BLUE>;
+        LED_COLOR_ID_RED
+        LED_COLOR_ID_BLUE>;
     };
 };

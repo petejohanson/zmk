@@ -155,7 +155,7 @@ zephyr_udc0: &usb {
 &flash0 {
     /*
      * For more information, see:
-     * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+     * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
      */
     partitions {
         compatible = "fixed-partitions";

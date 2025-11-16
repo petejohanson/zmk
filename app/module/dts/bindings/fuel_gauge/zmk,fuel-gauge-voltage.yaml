@@ -1,0 +1,12 @@
+# Copyright (c) 2020 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Battery SoC monitoring using a battery voltage sensor
+
+compatible: "zmk,fuel-gauge-voltage"
+
+properties:
+  sensor:
+    type: phandle
+    required: true
+    description: The voltage divider or other voltage sensor to read

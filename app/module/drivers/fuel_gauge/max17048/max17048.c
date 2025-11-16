@@ -11,13 +11,12 @@
 #include <zephyr/sys/util.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/fuel_gauge.h>
 
 #include "max17048.h"
 
-#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(sensor_max17048);
+LOG_MODULE_REGISTER(max17048, CONFIG_FUEL_GAUGE_LOG_LEVEL);
 
 static int read_register(const struct device *dev, uint8_t reg, uint16_t *value) {
 
@@ -106,69 +105,62 @@ done:
     return err;
 }
 
-static int max17048_sample_fetch(const struct device *dev, enum sensor_channel chan) {
+static int max17048_get_state_of_charge(const struct device *dev, uint8_t *state_of_charge) {
+    struct max17048_drv_data *const data = dev->data;
+    k_sem_take(&data->lock, K_FOREVER);
 
-    struct max17048_drv_data *const drv_data = dev->data;
-    k_sem_take(&drv_data->lock, K_FOREVER);
-
-    int err = 0;
-
-    if (chan == SENSOR_CHAN_GAUGE_STATE_OF_CHARGE || chan == SENSOR_CHAN_ALL) {
-        err = read_register(dev, REG_STATE_OF_CHARGE, &drv_data->raw_state_of_charge);
-        if (err != 0) {
-            LOG_WRN("failed to read state-of-charge: %d", err);
-            goto done;
-        }
-        LOG_DBG("read soc: %d", drv_data->raw_state_of_charge);
-
-    } else if (chan == SENSOR_CHAN_GAUGE_VOLTAGE || chan == SENSOR_CHAN_ALL) {
-        err = read_register(dev, REG_VCELL, &drv_data->raw_vcell);
-        if (err != 0) {
-            LOG_WRN("failed to read vcell: %d", err);
-            goto done;
-        }
-        LOG_DBG("read vcell: %d", drv_data->raw_vcell);
-
-    } else {
-        LOG_DBG("unsupported channel %d", chan);
-        err = -ENOTSUP;
+    uint16_t raw_state_of_charge;
+    int err = read_register(dev, REG_STATE_OF_CHARGE, &raw_state_of_charge);
+    if (err != 0) {
+        LOG_WRN("failed to read state of charge: %d", err);
+        goto done;
     }
 
+    LOG_DBG("read soc: %u", raw_state_of_charge);
+
+    *state_of_charge = raw_state_of_charge >> 8;
+
 done:
-    k_sem_give(&drv_data->lock);
+    k_sem_give(&data->lock);
     return err;
 }
 
-static int max17048_channel_get(const struct device *dev, enum sensor_channel chan,
-                                struct sensor_value *val) {
-    int err = 0;
-
-    struct max17048_drv_data *const drv_data = dev->data;
-    k_sem_take(&drv_data->lock, K_FOREVER);
-
+static int max17048_get_voltage(const struct device *dev, int *microvolts) {
     struct max17048_drv_data *const data = dev->data;
-    unsigned int tmp = 0;
+    k_sem_take(&data->lock, K_FOREVER);
 
-    switch (chan) {
-    case SENSOR_CHAN_GAUGE_VOLTAGE:
-        // 1250 / 16 = 78.125
-        tmp = data->raw_vcell * 1250 / 16;
-        val->val1 = tmp / 1000000;
-        val->val2 = tmp % 1000000;
-        break;
-
-    case SENSOR_CHAN_GAUGE_STATE_OF_CHARGE:
-        val->val1 = (data->raw_state_of_charge >> 8);
-        val->val2 = (data->raw_state_of_charge & 0xFF) * 1000000 / 256;
-        break;
-
-    default:
-        err = -ENOTSUP;
-        break;
+    uint16_t raw_vcell;
+    int err = read_register(dev, REG_VCELL, &raw_vcell);
+    if (err != 0) {
+        LOG_WRN("failed to read vcell: %d", err);
+        goto done;
     }
 
-    k_sem_give(&drv_data->lock);
+    LOG_DBG("read vcell: %u", raw_vcell);
+
+    // 1250 / 16 = 78.125
+    *microvolts = raw_vcell * 1250 / 16;
+
+done:
+    k_sem_give(&data->lock);
     return err;
+}
+
+static int max17048_get_prop(const struct device *dev, fuel_gauge_prop_t prop,
+                             union fuel_gauge_prop_val *val) {
+    switch (prop) {
+    case FUEL_GAUGE_ABSOLUTE_STATE_OF_CHARGE:
+        return max17048_get_state_of_charge(dev, &val->absolute_state_of_charge);
+
+    case FUEL_GAUGE_RELATIVE_STATE_OF_CHARGE:
+        return max17048_get_state_of_charge(dev, &val->relative_state_of_charge);
+
+    case FUEL_GAUGE_VOLTAGE:
+        return max17048_get_voltage(dev, &val->voltage);
+
+    default:
+        return -ENOTSUP;
+    }
 }
 
 static int max17048_init(const struct device *dev) {
@@ -201,22 +193,20 @@ static int max17048_init(const struct device *dev) {
     return 0;
 }
 
-static const struct sensor_driver_api max17048_api_table = {.sample_fetch = max17048_sample_fetch,
-                                                            .channel_get = max17048_channel_get};
+static DEVICE_API(fuel_gauge, max17048_api) = {
+    .get_property = max17048_get_prop,
+};
 
 #define MAX17048_INIT(inst)                                                                        \
     static const struct max17048_config max17048_##inst##_config = {                               \
-        .i2c_bus = I2C_DT_SPEC_INST_GET(inst)};                                                    \
-                                                                                                   \
-    static struct max17048_drv_data max17048_##inst##_drvdata = {                                  \
-        .raw_state_of_charge = 0,                                                                  \
-        .raw_charge_rate = 0,                                                                      \
-        .raw_vcell = 0,                                                                            \
+        .i2c_bus = I2C_DT_SPEC_INST_GET(inst),                                                     \
     };                                                                                             \
+                                                                                                   \
+    static struct max17048_drv_data max17048_##inst##_drvdata;                                     \
                                                                                                    \
     /* This has to init after SPI master */                                                        \
     DEVICE_DT_INST_DEFINE(inst, max17048_init, NULL, &max17048_##inst##_drvdata,                   \
-                          &max17048_##inst##_config, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,     \
-                          &max17048_api_table);
+                          &max17048_##inst##_config, POST_KERNEL, CONFIG_FUEL_GAUGE_INIT_PRIORITY, \
+                          &max17048_api);
 
 DT_INST_FOREACH_STATUS_OKAY(MAX17048_INIT)

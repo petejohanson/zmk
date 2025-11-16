@@ -16,7 +16,7 @@
         zephyr,code-partition = &code_partition;
         zephyr,sram = &sram0;
         zephyr,flash = &flash0;
-        zmk,battery = &vbatt;
+        zmk,battery = &vbatt_gauge;
     };
 
     leds {
@@ -33,12 +33,16 @@
     };
 
     vbatt: vbatt {
-        compatible = "zmk,battery-voltage-divider";
+        compatible = "voltage-divider";
         io-channels = <&adc 0>;
         output-ohms = <1000000>;
         full-ohms = <(1000000 + 1000000)>;
     };
 
+    vbatt_gauge: vbatt_gauge {
+        compatible = "zmk,fuel-gauge-voltage";
+        sensor = <&vbatt>;
+    };
 };
 
 &adc {

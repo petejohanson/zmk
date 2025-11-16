@@ -1,0 +1,17 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: \
+  Battery SoC monitoring using a fuel gauge written with the sensor API
+
+  This driver wraps one of the fuel gauge drivers that was written with the
+  sensor API (e.g. maxim,max17055, maxim,max17262, or ti,bq274xx) so it supports
+  the fuel gauge API and can be used for ZMK battery monitoring.
+
+compatible: "zmk,fuel-gauge-sensor"
+
+properties:
+  sensor:
+    type: phandle
+    required: true
+    description: The fuel gauge sensor to read

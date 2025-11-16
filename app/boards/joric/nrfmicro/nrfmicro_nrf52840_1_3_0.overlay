@@ -6,7 +6,7 @@
 
 / {
     chosen {
-        zmk,battery = &vbatt;
+        zmk,battery = &vbatt_gauge;
     };
 
     // Node name must match original "EXT_POWER" label to preserve user settings.
@@ -17,10 +17,15 @@
     };
 
     vbatt: vbatt {
-        compatible = "zmk,battery-voltage-divider";
+        compatible = "voltage-divider";
         io-channels = <&adc 2>;
         output-ohms = <2000000>;
         full-ohms = <(2000000 + 820000)>;
+    };
+
+    vbatt_gauge: vbatt_gauge {
+        compatible = "zmk,fuel-gauge-voltage";
+        sensor = <&vbatt>;
     };
 };
 
